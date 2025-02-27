@@ -88,9 +88,9 @@ void display() {
 
 vertex intersect(vertex v1, vertex v2, vertex v3, vertex v4) {
     int x1=v1.x, y1=v1.y, x2=v2.x, y2=v2.y, x3=v3.x, y3=v3.y, x4=v4.x, y4=v4.y;
-    int D = (x1-x2)*(y3-y4)-(y1-y2)*(x3-x4);
-    int N1 = (x1*y2 - y1*x2), N2 = (x3*y4 - y3*x4);
-    int x = (int) (N1*(x3-x4)-(x1-x2)*N2)/D;
+    double D = (x1-x2)*(y3-y4)-(y1-y2)*(x3-x4);
+    double N1 = (x1*y2 - y1*x2), N2 = (x3*y4 - y3*x4);
+    int x = (int) std::round((N1*(x3-x4)-(x1-x2)*N2)/D);
     int y = (int) std::round((N1*(y3-y4)-(y1-y2)*N2)/D);
     return {x, y};
 }
