@@ -125,7 +125,22 @@ std::vector<vertex> SHBorderClip(std::vector<vertex> p, Compare cmp, int clipVal
     return ret;
 }
 
-void SHPolygonClip(std::vector<vertex> &polygon, const box w) {
+box formatClipWindow(const box b) {
+    if (b.TR.x < b.BL.x && b.TR.y > b.BL.y) { // Q2
+        return {{b.TR.x, b.BL.y}, {b.BL.x, b.TR.y}};
+    }
+    if (b.TR.x < b.BL.x && b.TR.y < b.BL.y) { // Q3
+        return {{b.TR.x, b.TR.y}, {b.BL.x, b.BL.y}};
+    }
+    if (b.BL.x < b.TR.x && b.TR.y < b.BL.y) { // Q4
+        return {{b.BL.x, b.TR.y}, {b.TR.x, b.BL.y}};
+    }
+    return b;
+}
+
+void SHPolygonClip(std::vector<vertex> &polygon, const box window) {
+    box w = formatClipWindow(window);
+
     std::vector<vertex> p = polygon;
     // left
     std::vector<vertex> pLeft = SHBorderClip(p, std::less<int>(), w.BL.x, w.BL, {w.BL.x, w.TR.y}, 0);
@@ -156,6 +171,19 @@ void processMenu(int option)
 	}
 }
 
+void processMouse(int button, int state, int x, int y) {
+    if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
+        clipWindow.BL = {x, 600-y};
+        clipWindow.TR = {x, 600-y};
+        glutPostRedisplay();
+    }
+}
+
+void defineClippingWindow(int x, int y) {
+    clipWindow.TR = {x, 600-y};
+    glutPostRedisplay();
+}
+
 int main(int argc, char** argv) {
     glutInit(&argc, argv);
 	glutInitDisplayMode(GLUT_RGB | GLUT_DOUBLE | GLUT_DEPTH);
@@ -180,10 +208,10 @@ int main(int argc, char** argv) {
 	glutAttachMenu(GLUT_RIGHT_BUTTON);
 
     // register callback for mouse
-    //glutMouseFunc(processMouse);
+    glutMouseFunc(processMouse);
 
     // register callback for passive mouse movement
-    //glutPassiveMotionFunc(dynamicDraw);
+    glutMotionFunc(defineClippingWindow);
 
     // enter main loop
 	glutMainLoop();
