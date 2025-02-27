@@ -19,13 +19,27 @@ typedef struct {
 
 std::vector<vertex> polygon = {{400,300}, {600, 500}, {200, 500}};
 box clipWindow = {{325,350}, {525, 450}};
+vertex finalPoint;
+int clipFlag = 0;
+int completePolygonFlag = 1;
 
 // key handlers
 void processKeys(unsigned char key, int x, int y) {
 	switch (key) {
         case 'f':
             exit(0);
-            break; 
+            break;
+        case 'r': // toggle clipping/polygon drawing
+            if (clipFlag) clipFlag = 0;
+            else clipFlag = 1;
+            glutPostRedisplay();
+            break;
+        case 'c': // complete polygon flag
+            if (!completePolygonFlag) {
+                completePolygonFlag = 1;
+            }
+            glutPostRedisplay();
+            break;
     }
 }
 
@@ -64,7 +78,7 @@ void displayPolygon(const std::vector<vertex> polygon) {
     for (int i = 0; i < polygon.size()-1; i++) {
         openGLLine(polygon[i].x, polygon[i].y, polygon[i+1].x, polygon[i+1].y);
     }
-    if (polygon.size() >= 3) {
+    if (polygon.size() >= 3 && completePolygonFlag) {
         openGLLine(polygon[polygon.size()-1].x, polygon[polygon.size()-1].y, polygon[0].x, polygon[0].y);
     }
 }
@@ -78,10 +92,13 @@ void displayClipWindow(const box c) {
 
 void display() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    displayPolygon(polygon);
-
+    if (polygon.size() > 1) {
+        displayPolygon(polygon);
+    }
+    if (!completePolygonFlag) {
+        openGLLine(polygon[polygon.size()-1].x, polygon[polygon.size()-1].y, finalPoint.x, finalPoint.y);
+    }
     displayClipWindow(clipWindow);
-
 
     glutSwapBuffers();
 }
@@ -160,7 +177,9 @@ void processMenu(int option)
 {
 	switch (option) {
 	case 1:
-        SHPolygonClip(polygon, clipWindow);
+        if (completePolygonFlag == 1){
+            SHPolygonClip(polygon, clipWindow);
+        }
 		break;
 	case 2:
         // fill polygon
@@ -172,16 +191,39 @@ void processMenu(int option)
 }
 
 void processMouse(int button, int state, int x, int y) {
-    if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
-        clipWindow.BL = {x, 600-y};
+    if (clipFlag == 1) { // clipping mode
+        if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
+            clipWindow.BL = {x, 600-y};
+            clipWindow.TR = {x, 600-y};
+            glutPostRedisplay();
+        }
+    } else if (clipFlag == 0) { // polygon drawing mode
+        if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
+            if (completePolygonFlag == 1) {
+                completePolygonFlag = 0;
+                polygon.clear();
+                polygon.push_back({x, 600-y});
+                glutPostRedisplay();
+            } else {
+                polygon.push_back({x, 600-y});
+                glutPostRedisplay();
+            }
+        }
+    }
+    
+}
+
+void defineClippingWindow(int x, int y) { // active mouse
+    if (clipFlag == 1) {
         clipWindow.TR = {x, 600-y};
         glutPostRedisplay();
     }
 }
 
-void defineClippingWindow(int x, int y) {
-    clipWindow.TR = {x, 600-y};
-    glutPostRedisplay();
+void dynamicPolygon(int x,  int y) { // passive mouse
+    if (!clipFlag && !completePolygonFlag) {
+        finalPoint = {x, 600-y};
+    }
 }
 
 int main(int argc, char** argv) {
@@ -212,6 +254,8 @@ int main(int argc, char** argv) {
 
     // register callback for passive mouse movement
     glutMotionFunc(defineClippingWindow);
+
+    glutPassiveMotionFunc(dynamicPolygon);
 
     // enter main loop
 	glutMainLoop();
