@@ -7,6 +7,7 @@
 #include <vector>
 #include <cmath>
 #include <iostream>
+#include <functional>
 
 typedef struct {
     int x, y;
@@ -16,8 +17,8 @@ typedef struct {
     vertex BL, TR;
 } box;
 
-std::vector<vertex> polygon = {{400,300}, {400, 500}, {200, 500}};
-box clipWindow = {{125,350}, {325, 450}};
+std::vector<vertex> polygon = {{400,300}, {600, 500}, {200, 500}};
+box clipWindow = {{325,350}, {525, 450}};
 
 // key handlers
 void processKeys(unsigned char key, int x, int y) {
@@ -87,77 +88,55 @@ void display() {
 
 vertex intersect(vertex v1, vertex v2, vertex v3, vertex v4) {
     int x1=v1.x, y1=v1.y, x2=v2.x, y2=v2.y, x3=v3.x, y3=v3.y, x4=v4.x, y4=v4.y;
-    std::cout << "x1: " << x1 << " y1: " << y1 << " x2: " << x2 << " y2: " << y2 << " x3: " << x3 << " y3: " << y3 << " x4: " << x4 << " y4: " << y4 << std::endl;
     int D = (x1-x2)*(y3-y4)-(y1-y2)*(x3-x4);
     int N1 = (x1*y2 - y1*x2), N2 = (x3*y4 - y3*x4);
     int x = (int) (N1*(x3-x4)-(x1-x2)*N2)/D;
     int y = (int) std::round((N1*(y3-y4)-(y1-y2)*N2)/D);
-    std::cout << "x: " << x << " y: " << y << std::endl;
     return {x, y};
+}
+
+template <typename Compare>
+std::vector<vertex> SHBorderClip(std::vector<vertex> p, Compare cmp, int clipValue, vertex bp1, vertex bp2, int yFlag) {
+    std::vector<vertex> ret;
+
+    for (int i = 0; i < p.size(); i++) {
+        int in1 = 1, in2 = 1;
+        int v1 = i, v2 = i+1;
+        if (i == p.size()-1) {v2 = 0;}
+        if (yFlag == 1) {
+            if (cmp(p[v1].y, clipValue)) {in1 = 0;}
+            if (cmp(p[v2].y, clipValue)) {in2 = 0;}
+        } else {
+            if (cmp(p[v1].x, clipValue)) {in1 = 0;}
+            if (cmp(p[v2].x, clipValue)) {in2 = 0;}
+        }
+        if (!in1 && in2) { // v1', v2
+            ret.push_back(intersect(p[v1], p[v2], bp1, bp2));
+            ret.push_back(p[v2]);
+        }
+        if (in1 && !in2) { // v1'
+            ret.push_back(intersect(p[v1], p[v2], bp1, bp2));
+        }
+        if (in1 && in2) {
+            ret.push_back(p[v2]);
+        }
+    }
+
+    return ret;
 }
 
 void SHPolygonClip(std::vector<vertex> &polygon, const box w) {
     std::vector<vertex> p = polygon;
     // left
-    std::vector<vertex> pLeft;
-    for (int i = 0; i < p.size(); i++) {
-        int in1 = 1, in2 = 1;
-        int v1 = i, v2 = i+1;
-        if (i == p.size()-1) {v2 = 0;}
-        if (p[v1].x < w.BL.x) {in1 = 0;}
-        if (p[v2].x < w.BL.x) {in2 = 0;}
-        if (!in1 && in2) { // v1', v2
-            pLeft.push_back(intersect(p[v1], p[v2], w.BL, {w.BL.x, w.TR.y}));
-            pLeft.push_back(p[v2]);
-            std::cout << "out in" << std::endl;
-        }
-        if (in1 && !in2) { // v1'
-            pLeft.push_back(intersect(p[v1], p[v2], w.BL, {w.BL.x, w.TR.y}));
-            std::cout << "in out" << std::endl;
-        }
-        if (in1 && in2) {
-            pLeft.push_back(p[v2]);
-            std::cout << "in in" << std::endl;
-        }
-    }
-    std::cout<<"polygon"<< std::endl;
-    for (int i = 0; i < pLeft.size(); i++) {
-        std::cout << " " << pLeft[i].x << " " << pLeft[i].y << std::endl;
-    }
-    // right ------------------------------
-    std::vector<vertex> pRight;
-    for (int i = 0; i < pLeft.size(); i++) {
-        std::cout << "i: " << i << std::endl;
-        int in1 = 1, in2 = 1;
-        int v1 = i, v2 = i+1;
-        if (i == pLeft.size()-1) {v2 = 0;}
-        if (pLeft[v1].x > w.TR.x) {in1 = 0;}
-        if (pLeft[v2].x > w.TR.x) {in2 = 0;}
-        if (!in1 && in2) { // v1', v2
-            pRight.push_back(intersect(pLeft[v1], pLeft[v2], {w.TR.x, w.BL.y}, w.TR));
-            pRight.push_back(pLeft[v2]);
-            std::cout << "out in" << std::endl;
-        }
-        if (in1 && !in2) { // v1'
-            pRight.push_back(intersect(pLeft[v1], pLeft[v2], {w.TR.x, w.BL.y}, w.TR));
-            std::cout << "in out" << std::endl;
-        }
-        if (in1 && in2) {
-            pRight.push_back(pLeft[v2]);
-            std::cout << "in in" << std::endl;
-        }
-    }
-    
+    std::vector<vertex> pLeft = SHBorderClip(p, std::less<int>(), w.BL.x, w.BL, {w.BL.x, w.TR.y}, 0);
+    // right
+    std::vector<vertex> pRight = SHBorderClip(pLeft, std::greater<int>(), w.TR.x, {w.TR.x, w.BL.y}, w.TR, 0);
+    // top
+    std::vector<vertex> pTop = SHBorderClip(pRight, std::greater<int>(), w.TR.y, {w.BL.x, w.TR.y}, w.TR, 1);
+    // bottom
+    std::vector<vertex> pBottom = SHBorderClip(pTop, std::less<int>(), w.BL.y, w.BL, {w.TR.x, w.BL.y}, 1);
 
-    // ----------------------------
-
-
-    polygon = pRight;
-    std::cout<<"polygon"<< std::endl;
-    for (int i = 0; i < polygon.size(); i++) {
-        std::cout << " " << polygon[i].x << " " << polygon[i].y << std::endl;
-    }
-
+    polygon = pBottom;
     glutPostRedisplay();
 }
 
