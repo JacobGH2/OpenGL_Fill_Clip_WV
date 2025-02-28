@@ -8,20 +8,40 @@
 #include <cmath>
 #include <iostream>
 #include <functional>
+#include <tuple>
+#include <algorithm>
 
 typedef struct {
     int x, y;
 } vertex;
 
 typedef struct {
+    vertex v1, v2;
+} edge;
+
+typedef struct {
     vertex BL, TR;
 } box;
 
-std::vector<vertex> polygon = {{400,300}, {600, 500}, {200, 500}};
+typedef struct {
+    edge e;
+    int yMax, xMin;
+} edgeEntry;
+
+std::vector<vertex> polygon = {{175, 306}, 
+{182, 147}, 
+{238, 98}, 
+{345, 148}, 
+{347, 288}, 
+{271, 239},};
 box clipWindow = {{325,350}, {525, 450}};
 vertex finalPoint;
 int clipFlag = 0;
 int completePolygonFlag = 1;
+int fillFlag = 0;
+
+void init();
+void SLFill(const std::vector<vertex>);
 
 // key handlers
 void processKeys(unsigned char key, int x, int y) {
@@ -99,6 +119,8 @@ void display() {
         openGLLine(polygon[polygon.size()-1].x, polygon[polygon.size()-1].y, finalPoint.x, finalPoint.y);
     }
     displayClipWindow(clipWindow);
+
+    SLFill(polygon);
 
     glutSwapBuffers();
 }
@@ -182,7 +204,7 @@ void processMenu(int option)
         }
 		break;
 	case 2:
-        // fill polygon
+        if (completePolygonFlag) {fillFlag = 1;}
 		break;
 	case 3:
         // perform WV transform
@@ -201,6 +223,7 @@ void processMouse(int button, int state, int x, int y) {
         if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
             if (completePolygonFlag == 1) {
                 completePolygonFlag = 0;
+                fillFlag = 0;
                 polygon.clear();
                 polygon.push_back({x, 600-y});
                 glutPostRedisplay();
@@ -225,6 +248,100 @@ void dynamicPolygon(int x,  int y) { // passive mouse
         finalPoint = {x, 600-y};
     }
 }
+
+bool myComp(edgeEntry i, edgeEntry j) { return (i.xMin < j.xMin); }
+
+void SLFill(const std::vector<vertex> p) {
+    // determine ET size (maximum Ymin)
+    int maxY = -1;
+    for (int i = 0; i < p.size(); i++) {
+        maxY = std::max(maxY, p[i].y);
+    }
+    std::vector<std::tuple<int, std::vector<edgeEntry>>> ET;
+    for (int i = 0; i < maxY; i++) { // create and fill ET with empty entries
+        std::vector<edgeEntry> t;
+        ET.emplace_back(0, t);
+    }
+    
+    for (int i = 0; i < p.size(); i++) {  // add edges to ET in correct bucket (index == yMin)
+        int last = i+1;
+        if (i == p.size()-1) last = 0;
+        if (p[i].y == p[last].y) { // don't add horizontal line
+            continue;
+        }
+        int maxY = std::max(p[i].y, p[last].y);
+        int minX = std::min(p[i].x, p[last].x);
+        edgeEntry t = {{{p[i].x, p[i].y}, {p[last].x, p[last].y}}, maxY, minX};
+        int minY = std::min(t.e.v1.y, t.e.v2.y);
+        std::get<0>(ET[minY]) = 1;
+        std::get<1>(ET[minY]).push_back(t);
+        //edges.push_back(&t);
+    }
+
+    // sort all lists by xMin
+    for (int i = 0; i < ET.size(); i++) {
+        if (std::get<0>(ET[i]) == 1) {
+            std::sort(std::get<1>(ET[i]).begin(), std::get<1>(ET[i]).end(), myComp);
+        }
+    }
+
+    // debug print
+    /*
+    for (int i = 0; i < ET.size(); i++) {
+        if (std::get<0>(ET[i]) == 1) {
+            std::cout << "bucket" << std::endl;
+            std::vector<edgeEntry> curr = std::get<1>(ET[i]);
+            for (int j = 0; j < curr.size(); j++) {
+                std::cout << "x1: " << curr[j].e.v1.x << " y1: " << curr[j].e.v1.y << " x2: " << curr[j].e.v2.x << " y2: " << curr[j].e.v2.y << std::endl;
+            }
+        }
+    } */
+
+    std::vector<edgeEntry> activeET; // active edge table
+
+    // main loop for all y=[0..yMax] ----------------------------------------------------
+
+
+    for (int i = 0; i < ET.size(); i++) { 
+
+        for (int j = 0; j < activeET.size(); j++) { // remove from AET if needed
+            if (activeET[j].yMax < i) {
+                activeET.erase(activeET.begin() + j);
+            }
+            //j -= 1; // avoid going too far
+        }
+        if (std::get<0>(ET[i]) == 1) { // add to AET if current elev if non-empty
+            for (int k = 0; k < std::get<1>(ET[i]).size(); k++) { // add edges with y starting at i 
+                activeET.push_back(std::get<1>(ET[i])[k]);
+            }
+        }
+
+        // Calculate Intersections and Fill -------------------------------
+
+        std::vector<int> fillPtsX; // only have to store x, all have same y
+        for (int j = 0; j < activeET.size(); j++) { // calculate intersections
+            vertex inter = intersect({0, i}, {800, i}, activeET[j].e.v1, activeET[j].e.v2);
+            fillPtsX.push_back(inter.x);
+        }
+
+        std::sort(fillPtsX.begin(), fillPtsX.end()); // sort by x int point
+
+        //if (fillPtsX.size() % 2 != 0) {std::cout << "odd number of intersections, iteration: " << i << std::endl;}
+
+        for (int j = 0; j < fillPtsX.size(); j += 2) {
+            glBegin(GL_LINES);
+                glColor3f(1.0,1.0, 1.0);
+                glVertex2d(fillPtsX[j], i);
+                glVertex2d(fillPtsX[j+1], i);
+            glEnd();
+        }
+        // ----------------------------------------------------------------
+    }
+
+    glutPostRedisplay();
+
+}
+
 
 int main(int argc, char** argv) {
     glutInit(&argc, argv);
