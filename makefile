@@ -2,8 +2,8 @@ CFLAGS = --std=c++11
 
 # EXECUTABLE
 
-all: main.o clip.o fill.o
-	g++ --std=c++11 main.o clip.o fill.o -o a.out -framework OpenGL -framework GLUT -Wno-deprecated
+all: main.o clip.o fill.o viewport.o
+	g++ --std=c++11 main.o clip.o fill.o viewport.o -o a.out -framework OpenGL -framework GLUT -Wno-deprecated
 	./a.out
 
 # OBJECT
@@ -16,6 +16,9 @@ clip.o: clip.cpp proj.h
 
 fill.o: fill.cpp proj.h
 	g++ ${CFLAGS} fill.cpp -c -Wno-deprecated
+
+viewport.o: viewport.cpp proj.h
+	g++ ${CFLAGS} viewport.cpp -c -Wno-deprecated
 
 # UTILITY
 

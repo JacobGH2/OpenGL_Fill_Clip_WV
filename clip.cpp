@@ -30,7 +30,7 @@ std::vector<vertex> SHBorderClip(std::vector<vertex> p, Compare cmp, int clipVal
     return ret;
 }
 
-box formatClipWindow(const box b) {
+box formatSelectingWindow(const box b) {
     if (b.TR.x < b.BL.x && b.TR.y > b.BL.y) { // Q2
         return {{b.TR.x, b.BL.y}, {b.BL.x, b.TR.y}};
     }
@@ -44,7 +44,7 @@ box formatClipWindow(const box b) {
 }
 
 void SHPolygonClip(std::vector<vertex> &polygon, const box window) {
-    box w = formatClipWindow(window);
+    box w = formatSelectingWindow(window);
 
     std::vector<vertex> p = polygon;
     // left

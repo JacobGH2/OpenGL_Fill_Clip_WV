@@ -1,7 +1,13 @@
 #include "proj.h"
 
 // PRIMITIVES/UTILITY -------------------------------------------------------------------
-int modeFlag = POLYGON_DRAW, completePolygonFlag = 0, fillFlag = 0;
+
+std::vector<vertex> polygon = {{100, 100}, {300, 100}, {200, 300}};
+box clipWindow = {{225,350}, {425, 450}};
+box viewPortWindow = {{500, 100}, {745, 500}};
+box modeWindow = {{750, 550}, {800, 600}};
+vertex finalPoint;
+int modeFlag = POLYGON_DRAW, completePolygonFlag = 1, fillFlag = 0;
 
 void openGLPoint(int x, int y, int size) {
     glEnable(GL_VERTEX_PROGRAM_POINT_SIZE);
@@ -34,13 +40,13 @@ vertex intersect(vertex v1, vertex v2, vertex v3, vertex v4) {
     return {x, y};
 }
 
-// SCENE ELEMENTS  ----------------------------------------------------------------------
+void printPolygon() {
+    for (int i = 0; i < polygon.size(); i++) {
+        std::cout << "x: " << polygon[i].x << " y: " << polygon[i].y << std::endl;
+    }
+}   
 
-std::vector<vertex> polygon = {};
-box clipWindow = {{325,350}, {525, 450}};
-box viewPortWindow = {{400, 400}, {500, 500}};
-box modeWindow = {{750, 550}, {800, 600}};
-vertex finalPoint;
+// SCENE ELEMENTS  ----------------------------------------------------------------------
 
 void displayBox(const box c, int stipple=0) {
     openGLLine(c.BL.x, c.TR.y, c.TR.x, c.TR.y, stipple);  
@@ -82,7 +88,7 @@ void processMenu(int option)
 {
 	switch (option) {
 	case 1:
-        if (completePolygonFlag == 1){
+        if (completePolygonFlag) {
             SHPolygonClip(polygon, clipWindow);
         }
 		break;
@@ -94,8 +100,10 @@ void processMenu(int option)
         glutPostRedisplay();
 		break;
 	case 3:
-        // perform WV-transform
-        // no flags necessary
+        if (completePolygonFlag) {
+            viewportTransform(polygon, viewPortWindow);
+        }
+        glutPostRedisplay();
 		break;
 	}
 }
@@ -120,6 +128,12 @@ void processMouse(int button, int state, int x, int y) {
                 glutPostRedisplay();
             }
         }
+    } else if (modeFlag == VIEWPORT_DRAW) {
+        if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
+            viewPortWindow.BL = {x, 600-y};
+            viewPortWindow.TR = {x, 600-y};
+            glutPostRedisplay();
+        }
     }
     
 }
@@ -127,6 +141,9 @@ void processMouse(int button, int state, int x, int y) {
 void defineClippingWindow(int x, int y) { // active mouse
     if (modeFlag == CLIP_WINDOW_DRAW) {
         clipWindow.TR = {x, 600-y};
+        glutPostRedisplay();
+    } else if (modeFlag == VIEWPORT_DRAW) {
+        viewPortWindow.TR = {x, 600-y};
         glutPostRedisplay();
     }
 }
@@ -176,6 +193,8 @@ void display() {
     displayBox(clipWindow, 1); // clip window
 
     displayModeBox(); // display mode indicator
+
+    displayBox(viewPortWindow);
 
     if (fillFlag) SLFill(polygon);
 
