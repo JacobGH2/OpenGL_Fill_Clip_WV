@@ -2,12 +2,14 @@
 
 // PRIMITIVES/UTILITY -------------------------------------------------------------------
 
-std::vector<vertex> polygon = {{100, 100}, {300, 100}, {200, 300}};
+std::vector<vertex> WCpolygon = {{100, 100}, {300, 100}, {200, 300}};
+std::vector<vertex> polygon = WCpolygon; // active polygon
 box clipWindow = {{225,350}, {425, 450}};
+std::vector<vertex> VTPolygon = std::vector<vertex>(); // initialization sets this equal to transform of WCpolygon
 box viewPortWindow = {{500, 100}, {745, 500}};
 box modeWindow = {{750, 550}, {800, 600}};
 vertex finalPoint;
-int modeFlag = POLYGON_DRAW, completePolygonFlag = 1, fillFlag = 0;
+int modeFlag = POLYGON_DRAW, completePolygonFlag = 1, fillFlag = 0, viewportFlag = 0;
 
 void openGLPoint(int x, int y, int size) {
     glEnable(GL_VERTEX_PROGRAM_POINT_SIZE);
@@ -40,11 +42,25 @@ vertex intersect(vertex v1, vertex v2, vertex v3, vertex v4) {
     return {x, y};
 }
 
-void printPolygon() {
+void printPolygons() {
+    std::cout << "active: " << std::endl;
     for (int i = 0; i < polygon.size(); i++) {
         std::cout << "x: " << polygon[i].x << " y: " << polygon[i].y << std::endl;
     }
+    std::cout << "WC: " << std::endl;
+    for (int i = 0; i < WCpolygon.size(); i++) {
+        std::cout << "x: " << WCpolygon[i].x << " y: " << WCpolygon[i].y << std::endl;
+    }
+    std::cout << "VT: " << std::endl;
+    for (int i = 0; i < VTPolygon.size(); i++) {
+        std::cout << "x: " << VTPolygon[i].x << " y: " << VTPolygon[i].y << std::endl;
+    }
 }   
+
+void updateActivePolygon() {
+    if (viewportFlag) polygon = VTPolygon;
+    else polygon = WCpolygon;
+}
 
 // SCENE ELEMENTS  ----------------------------------------------------------------------
 
@@ -84,13 +100,17 @@ void displayPolygon(const std::vector<vertex> polygon) {
 }
 
 // HANDLERS -----------------------------------------------------------------------------
-void processMenu(int option)
-{
+void processMenu(int option) {
 	switch (option) {
 	case 1:
         if (completePolygonFlag) {
-            SHPolygonClip(polygon, clipWindow);
+            if (!viewportFlag) {
+                SHPolygonClip(WCpolygon, clipWindow);
+            } else {
+                SHPolygonClip(VTPolygon, clipWindow);
+            }
         }
+        glutPostRedisplay();
 		break;
 	case 2:
         if (completePolygonFlag) {
@@ -99,13 +119,7 @@ void processMenu(int option)
         }
         glutPostRedisplay();
 		break;
-	case 3:
-        if (completePolygonFlag) {
-            viewportTransform(polygon, viewPortWindow);
-        }
-        glutPostRedisplay();
-		break;
-	}
+    }
 }
 
 void processMouse(int button, int state, int x, int y) {
@@ -115,16 +129,17 @@ void processMouse(int button, int state, int x, int y) {
             clipWindow.TR = {x, 600-y};
             glutPostRedisplay();
         }
-    } else if (modeFlag == POLYGON_DRAW) { // polygon drawing mode
+    } else if (modeFlag == POLYGON_DRAW) { // polygon drawing mode, adding WC polygon
         if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
             if (completePolygonFlag == 1) {
-                polygon.clear();
+                viewportFlag = 0;
+                WCpolygon.clear();
                 completePolygonFlag = 0;
                 fillFlag = 0;
-                polygon.push_back({x, 600-y});
+                WCpolygon.push_back({x, 600-y});
                 glutPostRedisplay();
             } else {
-                polygon.push_back({x, 600-y});
+                WCpolygon.push_back({x, 600-y});
                 glutPostRedisplay();
             }
         }
@@ -175,6 +190,11 @@ void processKeys(unsigned char key, int x, int y) {
         case 'c': // complete polygon flag
             if (!completePolygonFlag) completePolygonFlag = 1;
             break;
+        case 'v': // viewport transform toggle
+            if (!viewportFlag) viewportFlag = 1;
+            else viewportFlag = 0;
+            glutPostRedisplay();
+            break;
     }
     glutPostRedisplay();
 }
@@ -182,19 +202,26 @@ void processKeys(unsigned char key, int x, int y) {
 // MAIN FUNCTIONS -----------------------------------------------------------------------
 void display() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    if (polygon.size() > 1) displayPolygon(polygon);
 
+    viewportTransform(WCpolygon, VTPolygon, viewPortWindow); // generate transformed coordinates
+    updateActivePolygon(); // set active polygon to either WC or VT
+
+    // Was an attempt to draw dynamic polygon final point. Doesn't work, but program will crash without it
     if (!completePolygonFlag && polygon.size() > 1) {
         openGLLine(polygon[polygon.size()-1].x, polygon[polygon.size()-1].y, finalPoint.x, finalPoint.y);
     }
 
-    if (polygon.size() == 1) openGLPoint(polygon[0].x, polygon[0].y, 5);
+    if (polygon.size() == 1) openGLPoint(polygon[0].x, polygon[0].y, 5); // initial polygon point
     
     displayBox(clipWindow, 1); // clip window
 
     displayModeBox(); // display mode indicator
 
-    displayBox(viewPortWindow);
+    displayBox(viewPortWindow); // display viewport
+
+    if (polygon.size() > 1) { // draw active polygon
+        displayPolygon(polygon);
+    }
 
     if (fillFlag) SLFill(polygon);
 
@@ -238,7 +265,6 @@ int main(int argc, char** argv) {
 	int menu = glutCreateMenu(processMenu);
 	glutAddMenuEntry("Clip", 1);
 	glutAddMenuEntry("Fill", 2);
-	glutAddMenuEntry("Viewport Map", 3);
 	glutAttachMenu(GLUT_RIGHT_BUTTON);
 
     // register callback for mouse
