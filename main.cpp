@@ -91,14 +91,25 @@ void displayClipWindow(const box c) {
     openGLLine(c.BL.x, c.BL.y, c.BL.x, c.TR.y, 1); 
 }
 
+void openGLFirstPoint(int x, int y, int size) {
+    glEnable(GL_VERTEX_PROGRAM_POINT_SIZE);
+    glPointSize(size);
+    glBegin(GL_POINTS);
+        glVertex2d(x, y);
+    glEnd();
+    glDisable(GL_VERTEX_PROGRAM_POINT_SIZE);
+}
+
 void display() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     if (polygon.size() > 1) {
         displayPolygon(polygon);
     }
-    if (!completePolygonFlag) {
+    if (!completePolygonFlag && polygon.size() > 1) {
         openGLLine(polygon[polygon.size()-1].x, polygon[polygon.size()-1].y, finalPoint.x, finalPoint.y);
     }
+    if (polygon.size() == 1) openGLFirstPoint(polygon[0].x, polygon[0].y, 5);
+    
     displayClipWindow(clipWindow);
 
     if (fillFlag) {
@@ -208,9 +219,9 @@ void processMouse(int button, int state, int x, int y) {
     } else if (clipFlag == 0) { // polygon drawing mode
         if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
             if (completePolygonFlag == 1) {
+                polygon.clear();
                 completePolygonFlag = 0;
                 fillFlag = 0;
-                polygon.clear();
                 polygon.push_back({x, 600-y});
                 glutPostRedisplay();
             } else {
@@ -247,13 +258,7 @@ void processKeys(unsigned char key, int x, int y) {
             glutPostRedisplay();
             break;
         case 'c': // complete polygon flag
-            if (!completePolygonFlag) {
-                completePolygonFlag = 1;
-                std::cout << "polygon: " << std::endl;
-                for (int i = 0; i < polygon.size(); i++) {
-                    std::cout << polygon[i].x << ", " << polygon[i].y << std::endl;
-                }
-            }
+            if (!completePolygonFlag) completePolygonFlag = 1;
             glutPostRedisplay();
             break;
     }
@@ -327,19 +332,7 @@ void SLFill(std::vector<vertex> p) {
         // AET indices correspond to fillPtsX indices
 
         int oddInt = 0;
-        if (fillPtsX.size() % 2 != 0) {
-            std::cout << "odd number of intersections (" << fillPtsX.size() << "), iteration: " << i << std::endl;
-            oddInt = 1;
-        }
-
-        if (oddInt) {
-            if (oddInt) {
-                std::cout << "points before: " << std::endl;
-                for (int m = 0; m < fillPtsX.size(); m++) {
-                    std::cout << fillPtsX[m] << std::endl;
-                }
-            }
-        }
+        if (fillPtsX.size() % 2 != 0) oddInt = 1;
 
         if (oddInt) {
             // erase duplicate int. point if it corresponds to edge whose top vertex has current y-value
@@ -357,23 +350,10 @@ void SLFill(std::vector<vertex> p) {
                 k++;
             }
         }     
-        
-        if (oddInt && (fillPtsX.size() % 2 != 0)) { // debug
-            std::cout << "points after: " << std::endl;
-            for (int m = 0; m < fillPtsX.size(); m++) {
-                std::cout << fillPtsX[m] << std::endl;
-            }
-
-            std::cout << "AET: " << std::endl;
-            for (int m = 0; m < activeET.size(); m++) {
-                std::cout << activeET[m].e.v1.x << " " << activeET[m].e.v1.y << " " << activeET[m].e.v2.x << " " << activeET[m].e.v2.y << std::endl;
-            }
-        }
 
         std::sort(fillPtsX.begin(), fillPtsX.end()); // sort by x int point
 
         for (int j = 0; j < fillPtsX.size(); j += 2) {
-            if (oddInt) std::cout << "y: " << i << " left: " << fillPtsX[j] << " right: " << fillPtsX[j+1] << std::endl;
             glColor3d(233, 204, 153);
             glBegin(GL_LINES);
                 glVertex2d(fillPtsX[j], i);
@@ -382,7 +362,6 @@ void SLFill(std::vector<vertex> p) {
         }
         // ----------------------------------------------------------------
     }
-    fillFlag = 1; // for single debug print
 
     glutPostRedisplay();
 
