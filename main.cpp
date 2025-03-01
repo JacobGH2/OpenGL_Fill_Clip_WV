@@ -1,7 +1,7 @@
 #include "proj.h"
 
 // PRIMITIVES/UTILITY -------------------------------------------------------------------
-int clipFlag = 0, completePolygonFlag = 0, fillFlag = 0;
+int modeFlag = POLYGON_DRAW, completePolygonFlag = 0, fillFlag = 0;
 
 void openGLPoint(int x, int y, int size) {
     glEnable(GL_VERTEX_PROGRAM_POINT_SIZE);
@@ -38,13 +38,34 @@ vertex intersect(vertex v1, vertex v2, vertex v3, vertex v4) {
 
 std::vector<vertex> polygon = {};
 box clipWindow = {{325,350}, {525, 450}};
+box viewPortWindow = {{400, 400}, {500, 500}};
+box modeWindow = {{750, 550}, {800, 600}};
 vertex finalPoint;
 
-void displayClipWindow(const box c) {
-    openGLLine(c.BL.x, c.TR.y, c.TR.x, c.TR.y, 1);  
-    openGLLine(c.TR.x, c.TR.y, c.TR.x, c.BL.y, 1); 
-    openGLLine(c.TR.x, c.BL.y, c.BL.x, c.BL.y, 1); 
-    openGLLine(c.BL.x, c.BL.y, c.BL.x, c.TR.y, 1); 
+void displayBox(const box c, int stipple=0) {
+    openGLLine(c.BL.x, c.TR.y, c.TR.x, c.TR.y, stipple);  
+    openGLLine(c.TR.x, c.TR.y, c.TR.x, c.BL.y, stipple); 
+    openGLLine(c.TR.x, c.BL.y, c.BL.x, c.BL.y, stipple); 
+    openGLLine(c.BL.x, c.BL.y, c.BL.x, c.TR.y, stipple); 
+}
+
+void displayModeBox() {
+    displayBox(modeWindow, 0);
+    // translate box to vector<vertex> for filling
+    std::vector<vertex> boxVertices = {{modeWindow.BL.x, modeWindow.BL.y}, {modeWindow.TR.x, modeWindow.BL.y}, {modeWindow.TR.x, modeWindow.TR.y}, {modeWindow.BL.x, modeWindow.TR.y}};
+    int color = 0;
+    switch (modeFlag) {
+        case POLYGON_DRAW:
+            color = J_RED;
+            break;
+        case CLIP_WINDOW_DRAW:
+            color = J_GREEN;
+            break;
+        case VIEWPORT_DRAW:
+            color = J_BLUE;
+            break;
+    }
+    SLFill(boxVertices, color);
 }
 
 void displayPolygon(const std::vector<vertex> polygon) {
@@ -73,19 +94,20 @@ void processMenu(int option)
         glutPostRedisplay();
 		break;
 	case 3:
-        // perform WV transform
+        // perform WV-transform
+        // no flags necessary
 		break;
 	}
 }
 
 void processMouse(int button, int state, int x, int y) {
-    if (clipFlag == 1) { // clipping mode
+    if (modeFlag == CLIP_WINDOW_DRAW) { // clipping mode
         if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
             clipWindow.BL = {x, 600-y};
             clipWindow.TR = {x, 600-y};
             glutPostRedisplay();
         }
-    } else if (clipFlag == 0) { // polygon drawing mode
+    } else if (modeFlag == POLYGON_DRAW) { // polygon drawing mode
         if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
             if (completePolygonFlag == 1) {
                 polygon.clear();
@@ -103,14 +125,14 @@ void processMouse(int button, int state, int x, int y) {
 }
 
 void defineClippingWindow(int x, int y) { // active mouse
-    if (clipFlag == 1) {
+    if (modeFlag == CLIP_WINDOW_DRAW) {
         clipWindow.TR = {x, 600-y};
         glutPostRedisplay();
     }
 }
 
 void dynamicPolygon(int x,  int y) { // passive mouse
-    if (!clipFlag && !completePolygonFlag) {
+    if (modeFlag == POLYGON_DRAW && !completePolygonFlag) {
         finalPoint = {x, 600-y};
     }
 }
@@ -120,16 +142,24 @@ void processKeys(unsigned char key, int x, int y) {
         case 'f':
             exit(0);
             break;
-        case 'r': // toggle clipping/polygon drawing
-            if (clipFlag) clipFlag = 0;
-            else clipFlag = 1;
-            glutPostRedisplay();
+        case 'r': // toggle clip window drawing/polygon drawing/viewport drawing
+            switch (modeFlag) {
+                case POLYGON_DRAW:
+                    modeFlag = CLIP_WINDOW_DRAW;
+                    break;
+                case CLIP_WINDOW_DRAW:
+                    modeFlag = VIEWPORT_DRAW;
+                    break;
+                case VIEWPORT_DRAW:
+                    modeFlag = POLYGON_DRAW;
+                    break;
+            }
             break;
         case 'c': // complete polygon flag
             if (!completePolygonFlag) completePolygonFlag = 1;
-            glutPostRedisplay();
             break;
     }
+    glutPostRedisplay();
 }
 
 // MAIN FUNCTIONS -----------------------------------------------------------------------
@@ -143,7 +173,9 @@ void display() {
 
     if (polygon.size() == 1) openGLPoint(polygon[0].x, polygon[0].y, 5);
     
-    displayClipWindow(clipWindow);
+    displayBox(clipWindow, 1); // clip window
+
+    displayModeBox(); // display mode indicator
 
     if (fillFlag) SLFill(polygon);
 
@@ -187,7 +219,7 @@ int main(int argc, char** argv) {
 	int menu = glutCreateMenu(processMenu);
 	glutAddMenuEntry("Clip", 1);
 	glutAddMenuEntry("Fill", 2);
-	glutAddMenuEntry("Viewport", 3);
+	glutAddMenuEntry("Viewport Map", 3);
 	glutAttachMenu(GLUT_RIGHT_BUTTON);
 
     // register callback for mouse

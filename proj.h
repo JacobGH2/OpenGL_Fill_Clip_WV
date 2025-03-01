@@ -31,11 +31,8 @@ typedef struct {
     int yMax, xMin;
 } edgeEntry;
 
-extern std::vector<vertex> polygon;
-extern box clipWindow;
-extern vertex finalPoint;
-extern int clipFlag, completePolygonFlag, fillFlag;
-
-void SLFill(const std::vector<vertex>);
+const int POLYGON_DRAW = 0, CLIP_WINDOW_DRAW = 1, VIEWPORT_DRAW = 2;
+const int J_WHITE = 0, J_RED = 1, J_GREEN = 2, J_BLUE = 3;
+void SLFill(const std::vector<vertex>, int color = J_WHITE);
 void SHPolygonClip(std::vector<vertex> &polygon, const box window);
 vertex intersect(vertex, vertex, vertex, vertex);

@@ -2,7 +2,20 @@
 
 bool myComp(edgeEntry i, edgeEntry j) { return (i.xMin < j.xMin); }
 
-void SLFill(std::vector<vertex> p) {
+void SLFill(std::vector<vertex> p, int color) {
+    glEnable(GL_COLOR_MATERIAL);
+    // set color
+    switch (color) {
+        case J_RED:
+            glColor3ub(255, 0, 0);
+            break;
+        case J_GREEN:
+            glColor3ub(0, 255, 0);
+            break;
+        case J_BLUE:
+            glColor3ub(0, 0, 255);
+            break;
+    }
 
     // determine ET size (maximum Ymin) and initialize empty ET
     int maxY = -1;
@@ -90,7 +103,6 @@ void SLFill(std::vector<vertex> p) {
         std::sort(fillPtsX.begin(), fillPtsX.end()); // sort by x int point
 
         for (int j = 0; j < fillPtsX.size(); j += 2) {
-            glColor3d(233, 204, 153);
             glBegin(GL_LINES);
                 glVertex2d(fillPtsX[j], i);
                 glVertex2d(fillPtsX[j+1], i);
@@ -98,6 +110,8 @@ void SLFill(std::vector<vertex> p) {
         }
         // ----------------------------------------------------------------
     }
+    glColor3ub(255, 255, 255);
+    glDisable(GL_COLOR_MATERIAL);
 
     glutPostRedisplay();
 
