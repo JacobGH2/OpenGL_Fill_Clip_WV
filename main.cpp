@@ -66,7 +66,10 @@ void processMenu(int option)
         }
 		break;
 	case 2:
-        if (completePolygonFlag) {fillFlag = 1;}
+        if (completePolygonFlag) {
+            if (!fillFlag) fillFlag = 1;
+            else fillFlag = 0;
+        }
         glutPostRedisplay();
 		break;
 	case 3:
