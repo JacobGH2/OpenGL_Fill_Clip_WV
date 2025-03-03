@@ -207,6 +207,23 @@ void processKeys(unsigned char key, int x, int y) {
             worldWindow.BL.y -= 3;
             worldWindow.TR.x += 4;
             worldWindow.TR.y += 3;
+            break;
+        case 'a':
+            worldWindow.BL.x -= 10;
+            worldWindow.TR.x -= 10;
+            break;
+        case 'd':
+            worldWindow.BL.x += 10;
+            worldWindow.TR.x += 10;
+            break;
+        case 'w':
+            worldWindow.BL.y += 10;
+            worldWindow.TR.y += 10;
+            break;
+        case 's':
+            worldWindow.BL.y -= 10;
+            worldWindow.TR.y -= 10;
+            break;
     }
     glutPostRedisplay();
 }
