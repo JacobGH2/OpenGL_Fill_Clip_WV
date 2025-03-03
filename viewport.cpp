@@ -1,17 +1,18 @@
 #include "proj.h"
 
-void viewportTransform(std::vector<vertex> wc, std::vector<vertex> &p, const box window) {
-    box w = formatSelectingWindow(window);
+void viewportTransform(std::vector<vertex> wc, std::vector<vertex> &p, const box viewportW, const box worldW) {
+    box VW = formatSelectingWindow(viewportW);
+    box WW = formatSelectingWindow(worldW);
 
     // always mapping from entire window to viewport
-    double xScale = ((w.TR.x - w.BL.x)/800.0);
-    double yScale = ((w.TR.y - w.BL.y)/600.0);
+    double xScale = ((VW.TR.x - VW.BL.x)/(double)(WW.TR.x - WW.BL.x));
+    double yScale = ((VW.TR.y - VW.BL.y)/(double)(WW.TR.y - WW.BL.y));
 
     p.clear();
 
     for (int i = 0; i < wc.size(); i++) {
-        int x = std::round((wc[i].x - 0) * xScale + w.BL.x);
-        int y = std::round((wc[i].y - 0) * yScale + w.BL.y);
+        int x = std::round((wc[i].x - (double)WW.BL.x) * xScale + VW.BL.x);
+        int y = std::round((wc[i].y - (double)WW.BL.y) * yScale + VW.BL.y);
         p.push_back({x, y});
     }
 }

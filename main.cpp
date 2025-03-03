@@ -7,6 +7,7 @@ std::vector<vertex> polygon = WCpolygon; // active polygon
 box clipWindow = {{225,350}, {425, 450}};
 std::vector<vertex> VTPolygon = std::vector<vertex>(); // initialization sets this equal to transform of WCpolygon
 box viewPortWindow = {{500, 100}, {745, 500}};
+box worldWindow = {{0, 0}, {800, 600}};
 box modeWindow = {{750, 550}, {800, 600}};
 vertex finalPoint;
 int modeFlag = POLYGON_DRAW, completePolygonFlag = 1, fillFlag = 0, viewportFlag = 0;
@@ -195,6 +196,17 @@ void processKeys(unsigned char key, int x, int y) {
             else viewportFlag = 0;
             glutPostRedisplay();
             break;
+        case 'i':
+            worldWindow.BL.x += 4;
+            worldWindow.BL.y += 3;
+            worldWindow.TR.x -= 4;
+            worldWindow.TR.y -= 3;
+            break;
+        case 'o':
+            worldWindow.BL.x -= 4;
+            worldWindow.BL.y -= 3;
+            worldWindow.TR.x += 4;
+            worldWindow.TR.y += 3;
     }
     glutPostRedisplay();
 }
@@ -203,7 +215,8 @@ void processKeys(unsigned char key, int x, int y) {
 void display() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    viewportTransform(WCpolygon, VTPolygon, viewPortWindow); // generate transformed coordinates
+    viewportTransform(WCpolygon, VTPolygon, viewPortWindow, worldWindow); // generate transformed coordinates
+    SHPolygonClip(VTPolygon, viewPortWindow);
     updateActivePolygon(); // set active polygon to either WC or VT
 
     // Was an attempt to draw dynamic polygon final point. Doesn't work, but program will crash without it
@@ -213,6 +226,8 @@ void display() {
 
     if (polygon.size() == 1) openGLPoint(polygon[0].x, polygon[0].y, 5); // initial polygon point
     
+    displayBox(worldWindow); // world window
+
     displayBox(clipWindow, 1); // clip window
 
     displayModeBox(); // display mode indicator
@@ -223,7 +238,7 @@ void display() {
         displayPolygon(polygon);
     }
 
-    if (fillFlag) SLFill(polygon);
+    if (fillFlag) SLFill(polygon); // fill polygon
 
     glutSwapBuffers();
 }
@@ -270,10 +285,10 @@ int main(int argc, char** argv) {
     // register callback for mouse
     glutMouseFunc(processMouse);
 
-    // register callback for passive mouse movement
-    glutMotionFunc(defineClippingWindow);
+    // register callbacks for mouse movement
+    glutMotionFunc(defineClippingWindow); // active
 
-    glutPassiveMotionFunc(dynamicPolygon);
+    glutPassiveMotionFunc(dynamicPolygon); // passive
 
     // enter main loop
 	glutMainLoop();
